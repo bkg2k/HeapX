@@ -17,12 +17,10 @@ HeapX has been primarily developed to replace *FreeRTOS heap5.c* (_and all the h
 
 The first requirement was to power up external ram chips on the first allocation and to shut them down when the last allocaton is freed.
 Then, because applications/firmwares are all diffetent and because memory fragmentation can be an issue, having several intialization, alloction & reallocation strategies can make the difference.
-Finally, every C/C++ developper has already faced memory related bugs are we all know they are often hard-to-find bugs. Being able to activate deep memory checks running on every malloc/realloc/free call to allow early detection of buffer underruns/overruns and other _mad pointer behaviors_ was also a strong requirement.
+Finally, every C/C++ developper has already faced memory related bugs and we all know they are often hard-to-find bugs. Being able to activate deep memory checks running on every malloc/realloc/free call to allow early detection of buffer underruns/overruns and other _mad pointer behaviors_ was also a strong requirement.
 
 # Usage
-
 ## Installation
-
 ### Get the sources
 Get the **HeapX** folder and add the 3 following files to your project
 ```
@@ -30,16 +28,13 @@ HeapAllocator.cpp
 HeapAllocator.h
 HeapAllocatorConf_template.h
 ```
-Rename the file `HeapAllocatorConf_template.h` to `HeapAllocator.h`... Et voila!
+Copy or rename the file `HeapAllocatorConf_template.h` to `HeapAllocatorConf.h`... Et voila!
 _The **VS** folder contains unit test projects for Visual Studio 2017 and are not required._
-
 ### Compile
 HeapX is written in full C++99 for the robustness of the language.
 It has been compiled with GCC 6.X (-Wall -Wextra) and Visual Studio 2017 (-Wall) and does not generate any warning polution.
-
 ## Configuration
 Configuring the allocator is quite easy:
-
 ### Configuring the Allocator
 Define a global structure named `HeapXMemoryConfiguration`, in the global namespace, of type `HeapX::AllocatorDefinition`.
 ```cpp
@@ -52,7 +47,7 @@ static HeapX::AllocatorDefinition HeapXMemoryConfiguration =
 };
 ```
 The 3 fist fields are function pointers and can be set to null to disable the corresponding calls:
-* The first field is called once when the allocator is initializing its memory regions.
+* The first field is called once when the allocator is initializing its context.
 * The second field may be called when the allocator deinitialize it's last region if the configuration is relevant.
 * The third is the Error handler pointer. It is strongly recommended to provide a function, and even more, to catch all the calls with a breakpoint, logs or whatever. You should be suprised to catch errors where you think your code is clean!
 
@@ -84,17 +79,16 @@ The `RegionDefinition` is defined as following:
 ```
 
 Lets see all fields in details.
-
 #### .StartAddress :
-Hold the **address** of the memory region.
-Required Alignment:
+Hold the _address_ of the memory region.
+
+Required Alignments:
 - 8 bytes on 32bit systems with `HEAPX_CHECK` < 2
 - 16 bytes on 32bit systems with `HEAPX_CHECK` == 2 or 64bits systems with `HEAPX_CHECK` < 2
 - 32 bytes on 64bit systems with `HEAPX_CHECK` == 2
 
 If the alignment condition is not meet, the allocator will take the next aligned address as the new region start address.
-
-Addressing whole memory banks is not an issue as they are aligned by nature. But if you use a static array as a memory region (like does the heap4/8 in FreeRTOS for example) you must to take care of the alignment (use pragma or attributes to align) or you will loose some bytes at the bottom of the memory region.
+Addressing whole memory banks is not an issue as they are aligned by nature. But if you use a static array as a memory region (like does the heap4/5 in FreeRTOS for example) you must take care of the alignment (use pragma or attributes to align) or you will loose some bytes at the bottom of the memory region.
 
 #### .Size :
 Size of the memory region, in byte. Must meet the same alignment requirements as for the StartAddress. If not, you will loose some bytes at the top of the memory region.
@@ -130,18 +124,14 @@ It can be one of the following value from the `enum HeapX::InitializationStrateg
 | **`Default`** | Can be used as the default value when the initialization strategy does not matter. Same as `DynamicOnce`. |
 
 It is important to understand that the HeapX allocator initialize itself when the very first allocation is called (lazy-initialization).
-
 The allocator reads the `HeapXMemoryConfiguration` global structure once and build its internal context. Then, `HeapXMemoryConfiguration` is no more used, and *changing its content has no effect*.
-
 However, if all memory regions are configured as `DynamicFull` and the very last allocation is freed, the allocator calls the global deinitializer function, read from `HeapXMemoryConfiguration`.
 
 Also, if you plan to build or change the configuration structure programmatically, beware of the static initializations. In C++, static classes might call malloc/calloc/realloc before your initialization code. In such cases, use the global intitialized to edit the region list.
 
 #### .Affinities
 It is common to see memory allocators to dispatch small, medium and large allocations in different regions. Doing this greatly decreases the memory fragmentation and helps reallocations also.
-
 HeapX is no exception.
-
 The field `Affinities` is a bitflag that makes the allocator selecting the right region for the right allocation size. You can choose multiple values by or-ing more than one `enum AllocationAffinity` (the `|` operator (bitwise OR) is defined)
 
 | Value | Behavior |
@@ -164,8 +154,15 @@ Default small/medium/large threshold values are:
 * 32 KBytes < Large
 Theses values can be adjusted using the `HeapXConfiguration.h`.
 
+#### .Reallocations
+Even if you are not familiar with the `realloc` function, lots of libraries are relying on. Sometimes because it is an all-in-one memory management function (yes, you can allocate, reallocate and free with `realloc`), but often because it's convenient to increase or decrease you in-memory objects or buffers with a all-in-one function hiding the process to the developper.
+
 ### Using the allocator: malloc/free and their friends
+Every C Library expose the 4 following functions:
+* void* malloc(size_t size);
+* void* calloc(size_t elements, size_t size);
+* void* realloc(void* ptr, size_t size);
+* void free(void* ptr);
 
 ### Advanced configuration
-
 ### Samples & Real time cases
