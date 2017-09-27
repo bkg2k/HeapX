@@ -1,5 +1,3 @@
-_Setup in progress..._
-
 # HeapX
 
 HeapX is a fast & strong **Memory Manager** primarily aimed at embedded world.
@@ -22,7 +20,9 @@ Then, because applications/firmwares are all diffetent and because memory fragme
 Finally, every C/C++ developper has already faced memory related bugs are we all know they are often hard-to-find bugs. Being able to activate deep memory checks running on every malloc/realloc/free call to allow early detection of buffer underruns/overruns and other _mad pointer behaviors_ was also a strong requirement.
 
 # Usage
+
 ## Installation
+
 ### Get the sources
 Get the **HeapX** folder and add the 3 following files to your project
 ```
@@ -32,11 +32,14 @@ HeapAllocatorConf_template.h
 ```
 Rename the file `HeapAllocatorConf_template.h` to `HeapAllocator.h`... Et voila!
 _The **VS** folder contains unit test projects for Visual Studio 2017 and are not required._
+
 ### Compile
 HeapX is written in full C++99 for the robustness of the language.
 It has been compiled with GCC 6.X (-Wall -Wextra) and Visual Studio 2017 (-Wall) and does not generate any warning polution.
+
 ## Configuration
 Configuring the allocator is quite easy:
+
 ### Configuring the Allocator
 Define a global structure named `HeapXMemoryConfiguration`, in the global namespace, of type `HeapX::AllocatorDefinition`.
 ```cpp
@@ -81,6 +84,7 @@ The `RegionDefinition` is defined as following:
 ```
 
 Lets see all fields in details.
+
 #### .StartAddress :
 Hold the **address** of the memory region.
 Required Alignment:
@@ -89,11 +93,14 @@ Required Alignment:
 - 32 bytes on 64bit systems with `HEAPX_CHECK` == 2
 
 If the alignment condition is not meet, the allocator will take the next aligned address as the new region start address.
+
 Addressing whole memory banks is not an issue as they are aligned by nature. But if you use a static array as a memory region (like does the heap4/8 in FreeRTOS for example) you must to take care of the alignment (use pragma or attributes to align) or you will loose some bytes at the bottom of the memory region.
+
 #### .Size :
 Size of the memory region, in byte. Must meet the same alignment requirements as for the StartAddress. If not, you will loose some bytes at the top of the memory region.
 * Minimum region size: Alignment requirement x 4 (8 x 4 = 32 bytes on 32bit systems with `HEAPX_CHECK` < 2)
 * Maximum region size: 256 MegaBytes on 32bit systems, and virtually 4 HexaBytes on 64bit systems.
+
 #### .Initializer :
 If not NULL/nullptr, the provided function will be called when the region is initialized.
 This may happend once, or several times, depending of the region configuration. Or even not happend at all if no allocation falls into this region.
@@ -103,11 +110,13 @@ That is, you can initialize the memory region:
 - Fill it with zero
 - Power-up the hardware (for external ram)
 - ...
+
 #### .Deinitializer :
 If not NULL/nullptr, the provided function will be called when the region is deinitialized.
 This may happend once, several times, or never, depending of the region configuration.
 
 As for the `Initializer` you may be interested in powering down external RAM or doing whatever you need in such situation.
+
 #### .Initializations :
 This field sets the initialization and deinitialization behavior of the memory region.
 It can be one of the following value from the `enum HeapX::InitializationStrategy` :
@@ -121,13 +130,18 @@ It can be one of the following value from the `enum HeapX::InitializationStrateg
 | **`Default`** | Can be used as the default value when the initialization strategy does not matter. Same as `DynamicOnce`. |
 
 It is important to understand that the HeapX allocator initialize itself when the very first allocation is called (lazy-initialization).
+
 The allocator reads the `HeapXMemoryConfiguration` global structure once and build its internal context. Then, `HeapXMemoryConfiguration` is no more used, and *changing its content has no effect*.
+
 However, if all memory regions are configured as `DynamicFull` and the very last allocation is freed, the allocator calls the global deinitializer function, read from `HeapXMemoryConfiguration`.
 
 Also, if you plan to build or change the configuration structure programmatically, beware of the static initializations. In C++, static classes might call malloc/calloc/realloc before your initialization code. In such cases, use the global intitialized to edit the region list.
+
 #### .Affinities
 It is common to see memory allocators to dispatch small, medium and large allocations in different regions. Doing this greatly decreases the memory fragmentation and helps reallocations also.
+
 HeapX is no exception.
+
 The field `Affinities` is a bitflag that makes the allocator selecting the right region for the right allocation size. You can choose multiple values by or-ing more than one `enum AllocationAffinity` (the `|` operator (bitwise OR) is defined)
 
 | Value | Behavior |
@@ -137,12 +151,12 @@ The field `Affinities` is a bitflag that makes the allocator selecting the right
 | **`Large`** | This region will receive large allocations first. |
 | **`Any`** | This region will receive allocations of any size. Its value is the combination of Small | Medium | Large. |
 | **`None`** | This region has no affinity and will be selected as the last choice for allocations of any size. Its value is 0. |
-| **`Default`** | Same as `Any`. |
+| **`Default`** | Use `Default` when you have only one region, when affinities do not matter, or when you don't know what to choose! Equals to `Any`. |
 
 When HeapX needs to allocate bytes, it start by qualifying the requested size: small, medium, or large.
 Then, it looks for the first region with enough room and the affinity matching the requested size.
-If nothing found, it tries seeking for the first region with enough room and no affinity.
-If still nothing, it tries the first region with enough room, whatever affinity it has or not.
+If nothing's found, it tries seeking for the first region with enough room and no affinity.
+If still nothing, it tries the first region with enough room.
 
 Default small/medium/large threshold values are:
 * 64 bytes <= Small
@@ -151,5 +165,7 @@ Default small/medium/large threshold values are:
 Theses values can be adjusted using the `HeapXConfiguration.h`.
 
 ### Using the allocator: malloc/free and their friends
+
 ### Advanced configuration
+
 ### Samples & Real time cases
